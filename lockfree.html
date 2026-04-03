@@ -3,60 +3,70 @@
 
 <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
     <title>Lockfree</title>
 
-    <style>
-        table {
-            border-collapse: collapse;
-            border: 2px solid black;
-            margin: 20px 0;
-        }
-
-        th, td {
-            border: 1px solid black;
-            padding: 8px 12px;
-            text-align: center;
-        }
-
-        th {
-            background-color: #f0f0f0;
-            font-weight: bold;
-        }
-    </style>
-
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<h1>Lockfree</h1>
+<div class="pub-bar">
+    <a href="index.html" class="pub-name">Low Latency Notes</a>
+    <span class="pub-subscribe">systems &middot; concurrency</span>
+</div>
 
-<h2>Why Lockfree</h2>
-<p>The typical motivations given for using lockfree programming are as follows:</p>
-<ul>
-    <li>No lock contention - Theads don't wait to aquire a lock. Any contention will happen only on a single atomic variable which is usually much cheaper than acquiring a lock as it avoids kernel involvement (sleeping, waking, context switching etc.).</li>
-    <li>Progress Guarantees - at least one thread will always be making progress. With locks, we have issues such as deadlocking, priority inversion and convoying (slow threads holding up other threads)</li>
-    <li>Scaling concurrency - without large critical sections where only one thread can do useful work, lock free programming can scale better with more concurrency.</li>
-</ul>
+<header>
+    <h1>Lock-Free Data Structures</h1>
+    <p class="subtitle">Treiber Stack, Michael Scott Queue, and SPSC Ring Buffer — with benchmarks.</p>
+    <div class="byline">
+        <span class="author">draft</span>
+        <span class="dot">&middot;</span>
+        <span>Apr 2025</span>
+        <span class="dot">&middot;</span>
+        <span>8 min read</span>
+    </div>
+</header>
 
-<p>These advantages are all well and good, however there are some domains that live and die by millisecond latency. If latency spikes kill your application, lock free data structures are your friend.</p>
+<nav class="toc">
+    <h4>Contents</h4>
+    <ol>
+        <li><a href="#why-lockfree">Why Lockfree</a></li>
+        <li><a href="#treiber-stack">Treiber Stack</a></li>
+        <li><a href="#aba-problem">The ABA Problem</a></li>
+        <li><a href="#ms-queue">Michael Scott Queue</a></li>
+        <li><a href="#spsc-ring-buffer">SPSC Ring Buffer</a></li>
+    </ol>
+</nav>
 
-<p>Execution speed matters in domains such as HFT...</p>
+<section>
+    <h2 id="why-lockfree">Why Lockfree</h2>
+    <p>The typical motivations given for using lockfree programming are as follows:</p>
+    <ul>
+        <li><strong>No lock contention</strong> — threads don't wait to acquire a lock. Any contention happens only on a single atomic variable, which is usually much cheaper than acquiring a lock as it avoids kernel involvement (sleeping, waking, context switching etc.).</li>
+        <li><strong>Progress guarantees</strong> — at least one thread will always be making progress. With locks, we have issues such as deadlocking, priority inversion, and convoying (slow threads holding up other threads).</li>
+        <li><strong>Scaling concurrency</strong> — without large critical sections where only one thread can do useful work, lock-free programming can scale better with more concurrency.</li>
+    </ul>
+    <p>These advantages are all well and good, however there are some domains that live and die by millisecond latency. If latency spikes kill your application, lock-free data structures are your friend.</p>
+    <p>Execution speed matters in domains such as HFT.</p>
+</section>
 
-<h2>3 Lock Free Data Structures</h2>
+<div class="section-divider">* * *</div>
 
-<h3>Treiber Stack</h3>
-<p>The treiber stack uses compare and swap to push and pop nodes</p>
-<h4>push</h4>
-Push is essentially a compare and swap on the old head and new head.
+<section>
+    <h2 id="treiber-stack">Treiber Stack</h2>
+    <p>The Treiber stack uses compare-and-swap to push and pop nodes.</p>
 
-<pre class="line-numbers"><code class="language-cpp">
-std::atomic&ltNode*&gt head{nullptr};
+    <h4>push</h4>
+    <p>Push is essentially a compare-and-swap on the old head and new head.</p>
+
+    <pre class="line-numbers"><code class="language-cpp">std::atomic&lt;Node*&gt; head{nullptr};
 
 void push(int value) {
     Node* new_node = new Node{value, nullptr};
@@ -64,200 +74,83 @@ void push(int value) {
     Node* old_head;
 
     old_head = head.load();
-    new_node->next = old_head;
+    new_node-&gt;next = old_head;
     head.compare_exchange_strong(old_head, new_node);
-}
-</code></pre>
+}</code></pre>
 
-<h4>pop</h4>
-Pop is a compare and swap on the current head and head->next. If head hasn't changed during the CAS, set head->next as head and return the old head.
+    <h4>pop</h4>
+    <p>Pop is a compare-and-swap on the current head and <code>head->next</code>. If head hasn't changed during the CAS, set <code>head->next</code> as head and return the old head.</p>
 
-<pre class="line-numbers"><code class="language-cpp">
-Node* pop() {
+    <pre class="line-numbers"><code class="language-cpp">Node* pop() {
     Node* old_head;
     Node* new_head;
 
     old_head = head.load(std::memory_order_acquire);
     if (old_head == nullptr)
         return nullptr;
-    new_head = old_head->next;
-    head.compare_exchange_strong(old_head, new_head, std::memory_order_acquire, std::memory_order_relaxed);
+    new_head = old_head-&gt;next;
+    head.compare_exchange_strong(old_head, new_head,
+        std::memory_order_acquire,
+        std::memory_order_relaxed);
     return old_head;
-}
-</code></pre>
+}</code></pre>
+</section>
 
-<h2>The ABA problem</h2>
-Compare and swap is just checking pointers. This can lead to the following problem:
-* Thread 1 is in the middle of a pop for node A (the current head) and gets paused by the scheduler just after <code>new_head = old_head->next;</code>
-* Thread 2 pops node A and node B, then pushes a new node to the same memory address as A
-* Thread 1 thinks nothing has changed in the CAS because the head is still at A, so pops A and makes B the head.
+<div class="section-divider">* * *</div>
 
-B was already freed by thread 2 and so the stack is in a corrupted state. B can point to freed memory.
+<section>
+    <h2 id="aba-problem">The ABA Problem</h2>
+    <p>Compare-and-swap checks pointers, not values. This can lead to a subtle corruption:</p>
 
-Three common solutions to this are as follows:
-<h3>tagged pointers</h3>
+    <div class="callout">
+        <p>1. Thread 1 begins a pop for node <strong>A</strong> (the current head) and is paused just after <code>new_head = old_head->next</code>.</p>
+        <p>2. Thread 2 pops node <strong>A</strong> and node <strong>B</strong>, then pushes a new node to the same memory address as A.</p>
+        <p>3. Thread 1's CAS succeeds — head is still at A — so it pops A and makes B the new head.</p>
+        <p>B was already freed by Thread 2. The stack is now in a corrupted state.</p>
+    </div>
 
-Instead of performing CAS operations on raw pointers, we use a tagged pointer and increment the tag value every time the head node is updated.
-This ensures the pointer is unique, even if it addresses the same memory.
+    <p>Three common solutions:</p>
 
-<pre class="line-numbers"><code class="language-cpp">
-    struct TaggedPtr {
-        Node* ptr;
-        uint64_t tag;
-    };
-</code></pre>
+    <h3>Tagged Pointers</h3>
+    <p>Perform CAS on a tagged pointer and increment the tag every time the head node is updated. This ensures the pointer is unique even if it addresses the same memory.</p>
 
-Our tagged pointer is now 128 bits wide so we need double width CAS, or we can fit our tagged pointer into one word.
-Tagged pointers don't prevent use-after-free, so in practice hazard pointers are preferred.
+    <pre class="line-numbers"><code class="language-cpp">struct TaggedPtr {
+    Node*    ptr;
+    uint64_t tag;
+};</code></pre>
 
-<h3>hazard pointers</h3>
-Keep a record of 'in use' pointers. Don't free a pointer if it is still in use. This solves the use-after-free issue that we get with ABA.
-On pop, we retire the node by adding it to a 'retire' list instead of freeing it immediately.
-We then periodically clear the 'retire' list by iterating through and checking that the node to be retired is not currently in use.
+    <p>The tagged pointer is now 128 bits wide, requiring double-width CAS — or the tag can be packed into a single word. Tagged pointers don't prevent use-after-free; freed memory can still be dereferenced. In practice, hazard pointers are preferred.</p>
 
-<h3>epoch-based reclaimation</h3>
-Maintain a global epoch counter. Once all threads are in the current epoch, advance the epoch. When a thread is finished with a node, add it to the retire
-list along with the current epoch value.
-If a node is >=2 epochs old, it is safe to delete since no other threads can be using it. Check if we can delete nodes in the retired list each time
-we add to it and it has reached some threshold size.
+    <h3>Hazard Pointers</h3>
+    <p>Keep a record of "in-use" pointers and never free a pointer that is still in use. This solves the use-after-free issue with ABA. On pop, the node is <em>retired</em> (added to a retire list) rather than freed immediately. The retire list is periodically scanned and nodes not currently in use are reclaimed.</p>
 
-<h3>Michael Scott Queue (FIFO MPMC Lockfree Queue)</h3>
-<p>fifo queue supports multi producer, multi consumer</p>
-<p>maintain head and tail pointer and use dummy node at the front of the queue to simplify enqueue/dequeue logic</p>
-<p>The tail pointer may not always be pointing to the very last node which is a design choice that significantly improves throughput of the algorithm.</p>
+    <h3>Epoch-Based Reclamation</h3>
+    <p>Maintain a global epoch counter. Once all threads have entered the current epoch, advance it. When a thread is done with a node, add it to the retire list along with the current epoch. Any node ≥2 epochs old is safe to delete — no other thread can be referencing it. Check for deletable nodes each time the retire list reaches a threshold size.</p>
+</section>
 
-<pre class="line-numbers"><code class="language-cpp">#include &ltatomic&gt
+<div class="section-divider">* * *</div>
 
-template &lttypename T&gt
-class MSQueue {
-private:
-    struct Node {
-        T value;
-        std::atomic&ltNode*&gt next;
+<section>
+    <h2 id="ms-queue">Michael Scott Queue</h2>
+    <p>A FIFO queue with support for multiple producers and multiple consumers.</p>
+    <p>Maintains head and tail pointers and uses a dummy node at the front to simplify enqueue/dequeue logic. The tail pointer may not always point to the very last node — a deliberate design choice that significantly improves throughput.</p>
+</section>
 
-        Node(T val) : value(val), next(nullptr) {}
-    };
+<div class="section-divider">* * *</div>
 
-    std::atomic&ltNode*&gt head;
-    std::atomic&ltNode*&gt tail;
+<section>
+    <h2 id="spsc-ring-buffer">SPSC Ring Buffer</h2>
+    <p>For the single-producer single-consumer case, release/acquire semantics with load and store are sufficient.</p>
 
-public:
-    MSQueue() {
-        Node* dummy = new Node(T{}); // dummy node
-        head.store(dummy);
-        tail.store(dummy);
-    }
+    <h4>False Sharing</h4>
+    <p>Apple Silicon uses 128-byte cache lines. Using <code>alignas(128)</code> ensures that <code>full</code> and <code>slot</code> do not land on the same cache line. If they did, the CPU would have to synchronize access from different cores, adding cycles. This is known as <strong>false sharing</strong>.</p>
 
-    ~MSQueue() {
-        // Not safe in concurrent use — just for completeness
-        while (dequeue().has_value()) {}
-        delete head.load();
-    }
+    <pre class="line-numbers"><code class="language-cpp">struct RingBufferLockFree {
+    alignas(128) std::atomic&lt;bool&gt;     full{false};
+    char pad1[128 - sizeof(std::atomic&lt;bool&gt;)];
 
-    // Enqueue
-    void enqueue(T value) {
-        Node* new_node = new Node(value);
-
-        while (true) {
-            Node* last = tail.load(std::memory_order_acquire);
-            Node* next = last->next.load(std::memory_order_acquire);
-
-            if (last == tail.load(std::memory_order_acquire)) {
-
-                // Case 1: tail is really the last node
-                if (next == nullptr) {
-                    // Try to link new node
-                    if (last->next.compare_exchange_weak(
-                            next,
-                            new_node,
-                            std::memory_order_release,
-                            std::memory_order_relaxed)) {
-
-                        // Try to swing tail to new node (optional)
-                        tail.compare_exchange_weak(
-                            last,
-                            new_node,
-                            std::memory_order_release,
-                            std::memory_order_relaxed);
-
-                        return;
-                    }
-                }
-                // Case 2: tail is lagging → help advance it
-                else {
-                    tail.compare_exchange_weak(
-                        last,
-                        next,
-                        std::memory_order_release,
-                        std::memory_order_relaxed);
-                }
-            }
-        }
-    }
-
-    // Dequeue
-    std::optional&ltT&gt dequeue() {
-        while (true) {
-            Node* first = head.load(std::memory_order_acquire);
-            Node* last  = tail.load(std::memory_order_acquire);
-            Node* next  = first->next.load(std::memory_order_acquire);
-
-            if (first == head.load(std::memory_order_acquire)) {
-
-                // Case 1: queue looks empty
-                if (first == last) {
-                    if (next == nullptr) {
-                        return std::nullopt; // empty
-                    }
-
-                    // Tail is behind → help it
-                    tail.compare_exchange_weak(
-                        last,
-                        next,
-                        std::memory_order_release,
-                        std::memory_order_relaxed);
-                }
-                else {
-                    // Read value BEFORE CAS
-                    T value = next->value;
-
-                    // Try to move head forward
-                    if (head.compare_exchange_weak(
-                            first,
-                            next,
-                            std::memory_order_release,
-                            std::memory_order_relaxed)) {
-
-                        // MEMORY LEAK HERE (no reclamation)
-                        // delete first;  <-- unsafe without hazard pointers / EBR
-
-                        return value;
-                    }
-                }
-            }
-        }
-    }
-};
-</code></pre>
-
-<h4>enqueue</h4>
-<p>Enqueue has two cases to handle. If tail->next == null then tail is the last node. We do two CAS operations, one to add the node at the end, and one to set the tail pointer to the new node.</p>
-If tail->next != null then tail doesn't actually point to the last node. Try advancing the tail and then retry the enqueue operation.
-
-<h4>dequeue</h4>
-<p>move head forward</p>
-
-<h3>SPSC Ring Buffer</h3>
-<p>For the single producer single consumer, we use release acquire semantics with load and store</p>
-<p>Apple silicon uses 128 byte cache lines. Using alignas(128) ensures the two variables, <code>full</code> and <code>slot</code> do not sit on the same cache line.</p>
-<p>If they were to land on the same cache line, the CPU would have to synchronize access from different cores, adding CPU cycles. This is known as false sharing.</p>
-
-<pre class="line-numbers"><code class="language-cpp">
-struct RingBufferLockFree {
-    alignas(128) std::atomic&ltbool&gt full{false};
-    char pad1[128 - sizeof(std::atomic&ltbool&gt)];
-    alignas(128) std::atomic&ltuint64_t&gt slot{};
-    char pad2[128 - sizeof(std::atomic&ltuint64_t&gt)];
+    alignas(128) std::atomic&lt;uint64_t&gt; slot{};
+    char pad2[128 - sizeof(std::atomic&lt;uint64_t&gt;)];
 
     void push(uint64_t v) {
         while (full.load(std::memory_order_acquire))
@@ -266,79 +159,60 @@ struct RingBufferLockFree {
         full.store(true, std::memory_order_release);
     }
 
-    bool pop(uint64_t& out) {
+    bool pop(uint64_t&amp; out) {
         if (!full.load(std::memory_order_acquire))
             return false;
         out = slot.load(std::memory_order_relaxed);
         full.store(false, std::memory_order_release);
         return true;
     }
-};
-</code></pre>
+};</code></pre>
 
-<h4>push</h4>
+    <h4>Benchmark</h4>
+    <p>This simple benchmark demonstrates the latency difference between lock-free and locking implementations. One thread pushes a timestamp; the other pops it and records the round-trip time.</p>
 
-<h4>pop</h4>
-
-<h4>Benchmarking the ring buffer</h4>
-
-<p>This simple benchmark demonstrates how lock free data structures can be beneficial</p>
-
-<pre class="line-numbers"><code class="language-cpp">...
-std::thread prod([&]() {
+    <pre class="line-numbers"><code class="language-cpp">std::thread prod([&amp;]() {
     while (run.load()) rb.push(now_ns());
 });
 
-std::thread cons([&]() {
+std::thread cons([&amp;]() {
     while (run.load()) {
         uint64_t ts;
         if (rb.pop(ts)) samples.push_back(now_ns() - ts);
     }
-});
-...
-</code></pre>
+});</code></pre>
 
+    <table>
+        <thead>
+        <tr>
+            <th>Metric</th>
+            <th>Lock-Free</th>
+            <th>Locking</th>
+            <th>Factor</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr><td>Samples</td><td>26,399,935</td><td>767,559</td><td>34.4×</td></tr>
+        <tr><td>Min</td><td>0 ns</td><td>208 ns</td><td>—</td></tr>
+        <tr><td>Median</td><td>125 ns</td><td>5,125 ns</td><td>41.0×</td></tr>
+        <tr><td>P99</td><td>750 ns</td><td>16,709 ns</td><td>22.3×</td></tr>
+        <tr><td>P99.9</td><td>1,417 ns</td><td>42,500 ns</td><td>30.0×</td></tr>
+        <tr><td>P99.99</td><td>5,083 ns</td><td>60,959 ns</td><td>12.0×</td></tr>
+        <tr><td>Max</td><td>88,959 ns</td><td>306,333 ns</td><td>3.4×</td></tr>
+        </tbody>
+    </table>
 
-<pre>
-Ring Buffer Latency Benchmark
-Duration: 3s per test
-==============================
+    <p>The lock-free implementation processes ~34× more samples and achieves a median latency ~41× lower. At the tail (P99.99), the gap widens further: 5 µs vs. 61 µs.</p>
+</section>
 
-[1/2] Testing Lock-Free...
-
-Lock-Free:
-Samples: 26399935
-Min:     0 ns
-Median:  125 ns
-P99:     750 ns
-P99.9:   1417 ns
-P99.99:  5083 ns
-Max:     88959 ns
-
-[2/2] Testing Locking...
-
-Locking:
-Samples: 767559
-Min:     208 ns
-Median:  5125 ns
-P99:     16709 ns
-P99.9:   42500 ns
-P99.99:  60959 ns
-Max:     306333 ns
-
-</pre>
-
-<h2>If lock free programming is so great, why don't we see more of it?</h2>
-<p>memory reclaimation</p>
-<p>false sharing</p>
-<p>ABA</p>
-
+<footer>
+    <span>Low Latency Notes</span>
+    <span>&copy; 2025</span>
+</footer>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
 
 </body>
-
-
 </html>

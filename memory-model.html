@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.css">
+    <title>The C++ Memory Model</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="pub-bar">
+    <a href="index.html" class="pub-name">Low Latency Notes</a>
+    <span class="pub-subscribe">systems &middot; concurrency</span>
+</div>
+
+<header>
+    <h1>The C++ Memory Model</h1>
+    <p class="subtitle">Atomic operations, memory orderings, and the guarantees they provide.</p>
+    <div class="byline">
+        <span class="author">draft</span>
+        <span class="dot">&middot;</span>
+        <span>Apr 2025</span>
+    </div>
+</header>
+
+<nav class="toc">
+    <h4>Contents</h4>
+    <ol>
+        <li><a href="#atomic-operations">The Atomic Operations</a></li>
+        <li><a href="#memory-orderings">Memory Orderings</a>
+            <ol>
+                <li><a href="#seq-cst">Sequentially Consistent Ordering</a></li>
+            </ol>
+        </li>
+        <li><a href="#non-seq-cst">Non-Sequentially Consistent Orderings</a>
+            <ol>
+                <li><a href="#relaxed">Relaxed Ordering</a></li>
+                <li><a href="#acquire-release">Acquire-Release Ordering</a></li>
+            </ol>
+        </li>
+        <li><a href="#x86-tso">X86 TSO</a></li>
+    </ol>
+</nav>
+
+<section>
+    <h2 id="atomic-operations">The Atomic Operations</h2>
+
+    <ul>
+        <li>
+            Store operations, which can have <code>memory_order_relaxed</code>,
+            <code>memory_order_release</code>, or
+            <code>memory_order_seq_cst</code> ordering
+        </li>
+        <li>
+            Load operations, which can have <code>memory_order_relaxed</code>,
+            <code>memory_order_consume</code>,
+            <code>memory_order_acquire</code>, or
+            <code>memory_order_seq_cst</code> ordering
+        </li>
+        <li>
+            Read-modify-write operations, which can have
+            <code>memory_order_relaxed</code>,
+            <code>memory_order_consume</code>,
+            <code>memory_order_acquire</code>,
+            <code>memory_order_release</code>,
+            <code>memory_order_acq_rel</code>, or
+            <code>memory_order_seq_cst</code> ordering
+        </li>
+    </ul>
+</section>
+
+<div class="section-divider">* * *</div>
+
+<section>
+    <h2 id="memory-orderings">Memory Orderings</h2>
+
+    <h3 id="seq-cst">Sequentially Consistent Ordering</h3>
+    <p>
+        Under sequentially consistent memory ordering, all threads see the same order of operations, or alternatively, all threads see the same global state. This is the default memory ordering for all atomic operations in C++ so does not need stating explicitly.
+    </p>
+
+    <p>
+        Consider the following program consisting of two threads. <code>t1</code> writes to <code>x</code> and reads from <code>y</code>. <code>t2</code> writes to <code>y</code> and reads from <code>x</code>. We then assert that both of the reads are not zero.
+    </p>
+
+    <pre class="line-numbers"><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;thread&gt;
+#include &lt;cassert&gt;
+
+std::atomic&lt;int&gt; x{0}, y{0};
+int r1 = 0, r2 = 0;
+
+int main() {
+    std::thread t1([] {
+        x.store(1, std::memory_order_seq_cst);  // A
+        r1 = y.load(std::memory_order_seq_cst); // B
+    });
+
+    std::thread t2([] {
+        y.store(1, std::memory_order_seq_cst);  // C
+        r2 = x.load(std::memory_order_seq_cst); // D
+    });
+
+    t1.join();
+    t2.join();
+
+    assert(!(r1 == 0 && r2 == 0));
+}</code></pre>
+
+    <p>
+        The threads cannot both read zero and so the assertion <strong>never</strong> fails. If t1 writes to x before the read in t2, t2 must read that value, and vice versa if t2 writes to y before the read in t1. <code>memory_order_seq_cst</code> is the simplest memory order to reason about.
+    </p>
+
+    <p><code>memory_order_seq_cst</code> is the most expensive of all the memory orderings. This becomes of particular concern on non x86/64 hardware where there is no hardware level implementation for sequentially consistent ordering.</p>
+
+    <p>
+        To clearly see why the assertion never fires, we can explicitly list all the possible global orderings of operations and the corresponding values of r1 and r2. No valid ordering results in both being zero.
+    </p>
+
+    <table>
+        <thead>
+        <tr>
+            <th>Ordering</th>
+            <th>r1</th>
+            <th>r2</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr><td>A B C D</td><td>0</td><td>1</td></tr>
+        <tr><td>A C B D</td><td>1</td><td>1</td></tr>
+        <tr><td>A C D B</td><td>1</td><td>1</td></tr>
+        <tr><td>C D A B</td><td>1</td><td>0</td></tr>
+        <tr><td>C A D B</td><td>1</td><td>1</td></tr>
+        <tr><td>C A B D</td><td>1</td><td>1</td></tr>
+        </tbody>
+    </table>
+</section>
+
+<div class="section-divider">* * *</div>
+
+<section>
+    <h2 id="non-seq-cst">Non-Sequentially Consistent Orderings</h2>
+
+    <h3 id="relaxed">Relaxed Ordering</h3>
+    <p>We now turn to the strange world of non-sequentially consistent memory ordering, where different threads don't have to agree on a global order of operations. We'll use the same example as before, but with <code>memory_order_relaxed</code>.</p>
+    <p>In our nice mental model of concurrent programming, all operations are neatly interleaved so you could in theory write them all down as a single global order of operations. Throw this mental model out the window.</p>
+    <p><code>memory_order_relaxed</code> is the least restrictive ordering. Atomic operations are still atomic, but there are no synchronization or visibility guarantees between threads. If thread A writes to a variable, there is no guarantee that thread B will see that write. On x86 we can generally rely on writes being seen eventually because of the strong memory model on x86.</p>
+
+    <pre class="line-numbers"><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;thread&gt;
+#include &lt;cassert&gt;
+
+std::atomic&lt;int&gt; x{0}, y{0};
+int r1 = 0, r2 = 0;
+
+int main() {
+    std::thread t1([] {
+        x.store(1, std::memory_order_relaxed);  // A
+        r1 = y.load(std::memory_order_relaxed); // B
+    });
+
+    std::thread t2([] {
+        y.store(1, std::memory_order_relaxed);  // C
+        r2 = x.load(std::memory_order_relaxed); // D
+    });
+
+    t1.join();
+    t2.join();
+
+    assert(!(r1 == 0 && r2 == 0));
+}</code></pre>
+
+    <p>This assertion can sometimes fail. How can r1 and r2 both read zero? What's actually happening is that t2 sees a different version of reality to t1. This is what we mean when we say there is no longer a single global order of operations.</p>
+
+    <p>t1 writes to x and then reads from y. When t1 reads from y, it can read an older value even if t2 has already written to y. This is possible because each core can buffer its own stores.</p>
+
+    <p>Even though in t1 the store to x happens before the load from y in program order, there is no guarantee that t2 will observe the store to x before performing its load. Likewise for t1 observing t2's store.</p>
+
+    <p>The only requirement is that if a thread sees a particular value of an atomic variable, it can't then see a previous value on subsequent reads.</p>
+
+    <!-- TODO: animation that shows relaxed ops. Section on when to use relaxed ordering. -->
+
+    <h3 id="acquire-release">Acquire-Release Ordering</h3>
+
+    <p>Acquire-release sits somewhere between relaxed and sequentially consistent in terms of the guarantees it offers.</p>
+
+    <p>Reads use acquire, stores use release; read-modify-write operations can be either. An acquire should be paired with a release. Synchronization is between the two threads that hold the acquire-release pair — other threads don't sync.</p>
+
+    <pre class="line-numbers"><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;thread&gt;
+#include &lt;cassert&gt;
+
+std::atomic&lt;bool&gt; ready{false};
+int data = 0;
+
+void producer() {
+    data = 42;
+    ready.store(true, std::memory_order_release); // publish
+}
+
+void consumer() {
+    while (!ready.load(std::memory_order_acquire)) {
+        ; // spin
+    }
+    assert(data == 42); // guaranteed
+}
+
+int main() {
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join();
+    t2.join();
+}</code></pre>
+
+    <p>This is all well and good, but we could have just used sequentially consistent ordering here and got the same outcome. To see how the behavior differs, we add more threads.</p>
+
+    <pre class="line-numbers"><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;thread&gt;
+#include &lt;cassert&gt;
+
+std::atomic&lt;bool&gt; x{false};
+std::atomic&lt;bool&gt; y{false};
+int r1 = 0;
+int r2 = 0;
+
+void t1() { x.store(true, std::memory_order_release); }
+void t2() { y.store(true, std::memory_order_release); }
+
+void t3() {
+    while (!x.load(std::memory_order_acquire)) {}
+    r1 = y.load(std::memory_order_acquire);
+}
+
+void t4() {
+    while (!y.load(std::memory_order_acquire)) {}
+    r2 = x.load(std::memory_order_acquire);
+}
+
+int main() {
+    std::thread a(t1), b(t2), c(t3), d(t4);
+    a.join(); b.join(); c.join(); d.join();
+    assert(r1 != 0 && r2 != 0);
+}</code></pre>
+
+    <p>The assert <strong>can</strong> fire here. r1 and r2 can both be zero. t1 syncs with t3; t2 syncs with t4. There is no synchronization between t2 and t3, or t1 and t4. Synchronization happens only on the acquire-release pair between two threads.</p>
+
+    <h4>Acquire-Release and Non-Atomic Operations</h4>
+    <p>Acquire-release can also be used to synchronize non-atomic operations.</p>
+
+    <pre class="line-numbers"><code class="language-cpp">#include &lt;atomic&gt;
+#include &lt;thread&gt;
+#include &lt;cassert&gt;
+
+int data{0};
+std::atomic&lt;bool&gt; ready{false};
+
+void producer() {
+    data = 42;                                        // non-atomic write
+    ready.store(true, std::memory_order_release);     // publish
+}
+
+void consumer() {
+    while (!ready.load(std::memory_order_acquire)) {} // spin
+    assert(data == 42); // all writes before release are now visible
+}
+
+int main() {
+    std::thread t1(producer);
+    std::thread t2(consumer);
+    t1.join();
+    t2.join();
+}</code></pre>
+
+    <p>There is no data race on <code>data</code> because the consumer must wait until the producer signals ready. If the producer updates data many times, use a relaxed atomic — the release-acquire will synchronize those relaxed writes such that any relaxed write before the release in the producer is visible after the acquire in the consumer.</p>
+
+    <h4>The Release Sequence</h4>
+    <p>Still can't find a good definition.</p>
+
+    <h4>memory_order_consume</h4>
+    <p>Deprecated in C++26. The majority of compilers implement it as <code>memory_order_acquire</code> anyway.</p>
+</section>
+
+<div class="section-divider">* * *</div>
+
+<section>
+    <h2 id="x86-tso">X86 TSO</h2>
+    <p>Just because something might work on TSO, it's still preferable to use the weakest ordering that is necessary.</p>
+</section>
+
+<footer>
+    <span>Low Latency Notes</span>
+    <span>&copy; 2025</span>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+
+</body>
+</html>

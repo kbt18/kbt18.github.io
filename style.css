@@ -1,0 +1,383 @@
+:root {
+    --bg: #ffffff;
+    --text: #1a1a1a;
+    --muted: #8a8a8a;
+    --border: #e8e8e8;
+    --code-bg: #f5f5f4;
+    --pre-bg: #1c1c1c;
+    --pre-text: #d4d4d4;
+    --max-width: 640px;
+    --serif: 'Source Serif 4', Georgia, serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: "Courier New", Courier, monospace;
+}
+
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    background: var(--bg);
+    color: var(--text);
+}
+
+body {
+    font-family: var(--serif);
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 24px 96px;
+    line-height: 1.75;
+}
+
+/* ── Publication bar ── */
+
+.pub-bar {
+    border-bottom: 1px solid var(--border);
+    padding: 14px 0;
+    margin-bottom: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.pub-name {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text);
+}
+
+.pub-subscribe {
+    font-family: var(--sans);
+    font-size: 0.78rem;
+    color: var(--muted);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+/* ── Header ── */
+
+header {
+    margin-bottom: 40px;
+    padding-bottom: 32px;
+    border-bottom: 1px solid var(--border);
+}
+
+header h1 {
+    font-family: var(--sans);
+    font-size: 2.4rem;
+    font-weight: 700;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    margin-bottom: 16px;
+    color: var(--text);
+}
+
+header .subtitle {
+    font-family: var(--serif);
+    font-size: 1.1rem;
+    color: #555;
+    font-weight: 300;
+    line-height: 1.5;
+    margin-bottom: 20px;
+}
+
+.byline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.byline .author {
+    color: var(--text);
+    font-weight: 600;
+}
+
+.byline .dot {
+    color: var(--border);
+}
+
+/* ── Body text ── */
+
+p {
+    font-size: 1rem;
+    line-height: 1.8;
+    margin-bottom: 20px;
+    color: #222;
+}
+
+ul, ol {
+    padding-left: 1.5em;
+    margin-bottom: 20px;
+}
+
+li {
+    font-size: 1rem;
+    line-height: 1.75;
+    margin-bottom: 8px;
+    color: #222;
+}
+
+/* ── Headings ── */
+
+h2 {
+    font-family: var(--sans);
+    font-size: 1.35rem;
+    font-weight: 650;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin: 48px 0 16px;
+    color: var(--text);
+}
+
+h3 {
+    font-family: var(--sans);
+    font-size: 1.05rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 32px 0 12px;
+    color: var(--text);
+}
+
+h4 {
+    font-family: var(--sans);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--muted);
+    margin: 28px 0 10px;
+}
+
+/* ── Divider ── */
+
+.section-divider {
+    text-align: center;
+    color: var(--muted);
+    font-size: 1rem;
+    letter-spacing: 0.5em;
+    margin: 48px 0;
+    user-select: none;
+}
+
+/* ── Inline code ── */
+
+code:not([class]) {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.8rem;
+    font-family: var(--mono);
+    color: #c7254e;
+}
+
+/* ── Code blocks ── */
+
+pre[class*="language-"] {
+    background: var(--pre-bg) !important;
+    border: none;
+    border-radius: 4px;
+    margin: 18px 0 28px;
+    padding: 20px 20px 20px 60px !important;
+    overflow-x: auto;
+    font-size: 0.77rem !important;
+    line-height: 1.65 !important;
+}
+
+pre[class*="language-"] code {
+    font-family: var(--mono) !important;
+    font-size: inherit !important;
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    color: inherit !important;
+}
+
+.line-numbers .line-numbers-rows {
+    border-right: 1px solid #3a3a3a !important;
+}
+
+.line-numbers-rows > span::before {
+    color: #4a4a4a !important;
+}
+
+/* ── Plain preformatted (benchmark output etc.) ── */
+
+pre:not([class]) {
+    background: var(--code-bg);
+    color: #333;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 20px 24px;
+    font-size: 0.77rem;
+    line-height: 1.8;
+    overflow-x: auto;
+    margin: 18px 0 28px;
+    font-family: var(--mono);
+}
+
+/* ── Callout ── */
+
+.callout {
+    border-left: 2px solid #999;
+    padding: 16px 20px;
+    margin: 24px 0;
+    background: #fafafa;
+}
+
+.callout p {
+    font-size: 0.95rem;
+    color: #444;
+    margin-bottom: 10px;
+    line-height: 1.7;
+}
+
+.callout p:last-child {
+    margin-bottom: 0;
+}
+
+/* ── Table ── */
+
+table {
+    border-collapse: collapse;
+    border: 1px solid var(--border);
+    margin: 20px 0;
+    width: 100%;
+    font-size: 0.9rem;
+}
+
+th, td {
+    border: 1px solid var(--border);
+    padding: 8px 14px;
+    text-align: center;
+}
+
+td:first-child {
+    text-align: left;
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+th {
+    background-color: var(--code-bg);
+    font-family: var(--sans);
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+}
+
+/* ── Table of contents ── */
+
+.toc {
+    margin-bottom: 48px;
+    padding: 20px 24px;
+    background: #fafafa;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+}
+
+.toc h4 {
+    margin: 0 0 12px;
+}
+
+.toc ol {
+    margin-bottom: 0;
+    padding-left: 1.25em;
+}
+
+.toc ol ol {
+    margin-top: 4px;
+    margin-bottom: 4px;
+}
+
+.toc li {
+    font-family: var(--sans);
+    font-size: 0.875rem;
+    line-height: 1.6;
+    margin-bottom: 4px;
+    color: var(--text);
+}
+
+.toc a {
+    color: var(--text);
+    text-decoration: none;
+}
+
+.toc a:hover {
+    text-decoration: underline;
+}
+
+/* ── Article index list ── */
+
+.article-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.article-link {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    text-decoration: none;
+    color: inherit;
+}
+
+.article-link:first-child {
+    border-top: 1px solid var(--border);
+}
+
+.article-title {
+    font-family: var(--sans);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.article-meta {
+    font-family: var(--serif);
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.5;
+}
+
+.article-link:hover .article-title {
+    text-decoration: underline;
+}
+
+/* ── pub-name as link ── */
+
+a.pub-name {
+    text-decoration: none;
+}
+
+a.pub-name:hover {
+    text-decoration: underline;
+}
+
+/* ── Footer ── */
+
+footer {
+    margin-top: 72px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    color: var(--muted);
+}
